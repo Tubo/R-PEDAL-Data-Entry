@@ -1,0 +1,30 @@
+{
+  "name": "pirads-form",
+  "version": "1.0.0",
+  "description": "This project is bootstrapped with [Create Elm App](https://github.com/halfzebra/create-elm-app).",
+  "main": "index.js",
+  "directories": {
+    "build": "elm-app build",
+    "test": "tests"
+  },
+  "dependencies": {
+    "create-elm-app": "^4.2.1"
+  },
+  "devDependencies": {
+    "create-elm-app": "^4.2.1"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Tubo/R-PEDAL-Data-Entry.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Tubo/R-PEDAL-Data-Entry/issues"
+  },
+  "homepage": "https://github.com/Tubo/R-PEDAL-Data-Entry#readme"
+}
