@@ -32,10 +32,6 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         ClickArea area ->
-            let
-                test =
-                    Debug.log "Area clicked" area
-            in
             ( model, Cmd.none )
 
 
