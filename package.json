@@ -4,7 +4,6 @@
   "description": "This project is bootstrapped with [Create Elm App](https://github.com/halfzebra/create-elm-app).",
   "main": "index.js",
   "directories": {
-    "build": "elm-app build",
     "test": "tests"
   },
   "dependencies": {
@@ -14,6 +13,7 @@
     "create-elm-app": "^4.2.1"
   },
   "scripts": {
+    "build": "elm-app build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
