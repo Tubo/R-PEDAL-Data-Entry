@@ -155,9 +155,9 @@ field label inner =
     p [ class "py-2 text-center" ] <| List.append [ span [ class "mr-4 w-48 inline-block text-right" ] [ text label ] ] inner
 
 
-textField : String -> String -> Html Msg
-textField label content =
-    field label <| [ span [ A.type_ "text", class "w-32" ] [ text content ] ]
+textAreaField : String -> Html Msg
+textAreaField label =
+    field label <| [ H.textarea [ class "w-48 border align-top" ] [] ]
 
 
 inputField : String -> String -> Html Msg
@@ -570,6 +570,16 @@ lesionForm imageURL heading maybeLesion =
                     [ lesionLocation lesion
                     , numberField "Lesion size (mm):" "lesion-size"
                     , inputField "ADC:" "adc"
+                    , choiceField "ECE: "
+                        [ H.option [] [ text "Yes" ]
+                        , H.option [ A.selected True ] [ text "No" ]
+                        ]
+                    , choiceField "SVI: "
+                        [ H.option [ A.selected True ] [ text "No" ]
+                        , H.option [] [ text "Yes - left" ]
+                        , H.option [] [ text "Yes - right" ]
+                        , H.option [] [ text "Yes - bilateral" ]
+                        ]
                     , choiceField "PIRADS 2.1 score:"
                         [ H.option [] [ text "2" ]
                         , H.option [] [ text "3" ]
@@ -581,6 +591,7 @@ lesionForm imageURL heading maybeLesion =
                         , H.option [] [ text "Yes - TZ DWI" ]
                         , H.option [ A.selected True ] [ text "No" ]
                         ]
+                    , textAreaField "Any additional findings?"
                     ]
                 ]
 
