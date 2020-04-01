@@ -40,9 +40,9 @@ type alias LesionData =
     }
 
 
-initLesionData : LesionData
-initLesionData =
-    LesionData First ( Nothing, Nothing ) "" "" ""
+initLesionData : LesionNumber -> LesionData
+initLesionData n =
+    LesionData n ( Nothing, Nothing ) "" "" ""
 
 
 init : String -> ( Model, Cmd Msg )
@@ -66,10 +66,10 @@ update msg model =
                 lesion =
                     case lesionNumber of
                         First ->
-                            Maybe.withDefault initLesionData model.first
+                            Maybe.withDefault (initLesionData First) model.first
 
                         Second ->
-                            Maybe.withDefault initLesionData model.second
+                            Maybe.withDefault (initLesionData Second) model.second
 
                 loc =
                     case lesion.location of
@@ -77,7 +77,11 @@ update msg model =
                             ( Just <| Location newLocation label, Nothing )
 
                         ( Just firstLocation, Nothing ) ->
-                            ( Just firstLocation, Just <| Location newLocation label )
+                            if firstLocation.name == newLocation then
+                                lesion.location
+
+                            else
+                                ( Just firstLocation, Just <| Location newLocation label )
 
                         _ ->
                             lesion.location
@@ -137,13 +141,13 @@ update msg model =
                     ( { model | first = Nothing }, Cmd.none )
 
                 ( First, Nothing ) ->
-                    ( { model | first = Just initLesionData }, Cmd.none )
+                    ( { model | first = Just (initLesionData First) }, Cmd.none )
 
                 ( Second, Just _ ) ->
                     ( { model | second = Nothing }, Cmd.none )
 
                 ( Second, Nothing ) ->
-                    ( { model | second = Just initLesionData }, Cmd.none )
+                    ( { model | second = Just (initLesionData Second) }, Cmd.none )
 
 
 field : String -> List (Html Msg) -> Html Msg
