@@ -152,32 +152,32 @@ update msg model =
 
 field : String -> List (Html Msg) -> Html Msg
 field label inner =
-    p [ class "py-2 text-center" ] <| List.append [ span [ class "mr-4 w-48 inline-block text-right" ] [ text label ] ] inner
+    p [ class "py-2 text-center" ] <| List.append [ span [ class "mr-8 w-48 inline-block text-right font-medium" ] [ text label ] ] inner
 
 
 textAreaField : String -> Html Msg
 textAreaField label =
-    field label <| [ H.textarea [ class "w-48 border align-top" ] [] ]
+    field label <| [ H.textarea [ class "w-48 border align-top text-sm mr-16" ] [] ]
 
 
 inputField : String -> String -> Html Msg
 inputField label name =
-    field label <| [ input [ A.type_ "text", A.name name, class "border w-32" ] [] ]
+    field label <| [ input [ A.type_ "text", A.name name, class "border w-48 mr-16" ] [] ]
 
 
 dateField : String -> String -> Html Msg
 dateField label name =
-    field label <| [ input [ A.type_ "date", A.name name, class "border w-32" ] [] ]
+    field label <| [ input [ A.type_ "date", A.name name, class "border w-48 mr-16" ] [] ]
 
 
 numberField : String -> String -> Html Msg
 numberField label name =
-    field label <| [ input [ A.type_ "number", A.name name, class "border w-32" ] [] ]
+    field label <| [ input [ A.type_ "number", A.name name, class "border w-48 mr-16" ] [] ]
 
 
 choiceField : String -> List (Html Msg) -> Html Msg
 choiceField label options =
-    field label [ H.select [ class "border w-32" ] options ]
+    field label [ H.select [ class "border w-48 px-6 mr-16" ] options ]
 
 
 type alias Coords =
@@ -530,27 +530,32 @@ lesionLocation lesion =
             \loc ->
                 case loc of
                     Just { name, label } ->
-                        span [ class "border p-1 mx-1 font-mono text-xs  rounded cursor-default inline-block w-18" ] [ text label ]
+                        span [ class "border p-1 mx-1 font-mono text-xs rounded cursor-default inline-block w-18 " ] [ text label ]
 
                     Nothing ->
                         text ""
+
+        resetButton =
+            span
+                [ class <|
+                    "border rounded-full h-4 w-4 inline-flex justify-center items-center "
+                        ++ "text-xs font-mono border-gray-600 text-gray-600 shadow-md m-2 cursor-pointer"
+                , Evt.onClick <| DeleteLocation lesion.name
+                ]
+                [ text "x" ]
     in
     case lesion.location of
         ( Nothing, Nothing ) ->
             field "Lesion location:"
-                [ span [ class "inline-block font-mono text-xs w-32" ] [ text "None selected" ] ]
+                [ span [ class "inline-block font-mono text-xs w-48 mr-16" ] [ text "None selected" ] ]
 
         _ ->
             field "Lesion location:"
-                [ locationField <| Tuple.first lesion.location
-                , locationField <| Tuple.second lesion.location
-                , span
-                    [ class <|
-                        "border rounded-full h-4 w-4 inline-flex justify-center items-center "
-                            ++ "text-xs font-mono border-gray-600 text-gray-600 shadow-md m-2 cursor-pointer"
-                    , Evt.onClick <| DeleteLocation lesion.name
+                [ span [ class "mr-8" ]
+                    [ locationField <| Tuple.first lesion.location
+                    , locationField <| Tuple.second lesion.location
+                    , resetButton
                     ]
-                    [ text "x" ]
                 ]
 
 
