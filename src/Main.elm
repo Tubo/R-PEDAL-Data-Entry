@@ -152,7 +152,7 @@ update msg model =
 
 field : String -> List (Html Msg) -> Html Msg
 field label inner =
-    p [ class "py-2" ] <| List.append [ span [ class "mr-4 w-48 inline-block text-right" ] [ text label ] ] inner
+    p [ class "py-2 text-center" ] <| List.append [ span [ class "mr-4 w-48 inline-block text-right" ] [ text label ] ] inner
 
 
 textField : String -> String -> Html Msg
@@ -530,7 +530,7 @@ lesionLocation lesion =
             \loc ->
                 case loc of
                     Just { name, label } ->
-                        span [ class "border p-1 mx-1 font-mono text-xs  rounded cursor-default" ] [ text label ]
+                        span [ class "border p-1 mx-1 font-mono text-xs  rounded cursor-default inline-block w-18" ] [ text label ]
 
                     Nothing ->
                         text ""
@@ -538,7 +538,7 @@ lesionLocation lesion =
     case lesion.location of
         ( Nothing, Nothing ) ->
             field "Lesion location:"
-                [ span [ class "font-mono text-xs" ] [ text "None selected" ] ]
+                [ span [ class "inline-block font-mono text-xs w-32" ] [ text "None selected" ] ]
 
         _ ->
             field "Lesion location:"
@@ -558,12 +558,12 @@ lesionForm : String -> String -> Maybe LesionData -> Html Msg
 lesionForm imageURL heading maybeLesion =
     case maybeLesion of
         Just lesion ->
-            H.section [ class "text-center border mt-6 mb-2 " ]
+            H.section [ class "text-center border mt-6 mb-2 transition-all duration-500 ease-in-out hover:border-2 hover:shadow-md" ]
                 [ div [ class "px-auto" ]
-                    [ div [ class "relative px-auto", A.style "width" "462px", A.style "height" "551px" ]
+                    [ div [ class "relative mx-auto", A.style "width" "462px", A.style "height" "551px" ]
                         [ H.img [ A.src imageURL, A.usemap "#imageMap", class "w-full absolute" ] []
                         , S.svg [ SA.viewBox "0 0 652 780", SA.class "absolute" ] <| lesionMap lesion.name
-                        , p [ class "absolute top-0 inset-x-0 text-center font-serif text-2xl pt-4" ] [ text heading ]
+                        , p [ class "absolute top-0 left-0 text-center font-serif text-2xl pt-4 w-full" ] [ text heading ]
                         ]
                     ]
                 , div [ class "px-14 text-left" ]
@@ -585,7 +585,7 @@ lesionForm imageURL heading maybeLesion =
                 ]
 
         Nothing ->
-            div [] []
+            H.section [ class "text-center mt-6 mb-2" ] []
 
 
 view : Model -> Html Msg
@@ -634,7 +634,7 @@ view model =
     H.form [ class "container mx-auto max-w-lg" ]
         [ H.h1 [ class "font-serif text-3xl text-center pb-10" ] [ text "R-PEDAL MRI Data Entry" ]
         , H.section [ class "text-center pb-8" ]
-            [ div [ class "px-14 text-left" ]
+            [ div [ class "px-14" ]
                 [ inputField "Patient ID:" "patient-id"
                 , dateField "MRI date:" "mri-date"
                 , numberField "PSA level:" "psa-level"
