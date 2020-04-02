@@ -1,7 +1,7 @@
 module Main exposing (main)
 
 import Browser
-import Html as H exposing (Html, button, div, input, label, node, p, span, text)
+import Html as H exposing (Html, div, input, label, p, span, text)
 import Html.Attributes as A exposing (alt, class, name, title)
 import Html.Events as Evt
 import Svg as S
@@ -551,7 +551,7 @@ lesionLocation lesion =
 
         _ ->
             field "Lesion location:"
-                [ span [ class "mr-8" ]
+                [ span [ class "mr-8 w-48" ]
                     [ locationField <| Tuple.first lesion.location
                     , locationField <| Tuple.second lesion.location
                     , resetButton
@@ -559,14 +559,79 @@ lesionLocation lesion =
                 ]
 
 
-lesionForm : String -> String -> Maybe LesionData -> Html Msg
-lesionForm imageURL heading maybeLesion =
+lesionForm : Model -> LesionNumber -> Html Msg
+lesionForm model lesionNumber =
+    let
+        maybeLesion =
+            case lesionNumber of
+                First ->
+                    model.first
+
+                Second ->
+                    model.second
+
+        heading =
+            case lesionNumber of
+                First ->
+                    "Index lesion"
+
+                Second ->
+                    "Secondary lesion (optional)"
+
+        newStyle =
+            "text-white bg-teal-400"
+
+        deleteStyle =
+            "text-gray-100 bg-red-600"
+
+        basicButton =
+            \n label styleClass ->
+                H.button
+                    [ class <| "block border p-1 mx-auto mt-1 mb-4 rounded text-sm " ++ styleClass
+                    , A.type_ "button"
+                    , Evt.onClick <| ToggleLesionForm n
+                    ]
+                    [ text label ]
+
+        primaryLesionButton =
+            case ( model.first, model.second ) of
+                ( Nothing, Nothing ) ->
+                    basicButton First "Add lesion" newStyle
+
+                ( Nothing, Just _ ) ->
+                    basicButton First "Delete lesion" deleteStyle
+
+                ( Just _, Nothing ) ->
+                    basicButton First "Delete lesion" deleteStyle
+
+                ( Just _, Just _ ) ->
+                    text ""
+
+        secondaryLesionButton =
+            case ( model.first, model.second ) of
+                ( Just _, Nothing ) ->
+                    basicButton Second "Add optional lesion" newStyle
+
+                ( Just _, Just _ ) ->
+                    basicButton Second "Delete lesion" deleteStyle
+
+                ( Nothing, _ ) ->
+                    text ""
+
+        button =
+            case lesionNumber of
+                First ->
+                    primaryLesionButton
+
+                Second ->
+                    secondaryLesionButton
+    in
     case maybeLesion of
         Just lesion ->
             H.section [ class "text-center border mt-6 mb-2 transition-all duration-500 ease-in-out hover:border-2 hover:shadow-md" ]
                 [ div [ class "px-auto" ]
                     [ div [ class "relative mx-auto", A.style "width" "462px", A.style "height" "551px" ]
-                        [ H.img [ A.src imageURL, A.usemap "#imageMap", class "w-full absolute" ] []
+                        [ H.img [ A.src model.lesionMapUrl, A.usemap "#imageMap", class "w-full absolute" ] []
                         , S.svg [ SA.viewBox "0 0 652 780", SA.class "absolute" ] <| lesionMap lesion.name
                         , p [ class "absolute top-0 left-0 text-center font-serif text-2xl pt-4 w-full" ] [ text heading ]
                         ]
@@ -575,16 +640,6 @@ lesionForm imageURL heading maybeLesion =
                     [ lesionLocation lesion
                     , numberField "Lesion size (mm):" "lesion-size"
                     , inputField "ADC:" "adc"
-                    , choiceField "ECE: "
-                        [ H.option [] [ text "Yes" ]
-                        , H.option [ A.selected True ] [ text "No" ]
-                        ]
-                    , choiceField "SVI: "
-                        [ H.option [ A.selected True ] [ text "No" ]
-                        , H.option [] [ text "Yes - left" ]
-                        , H.option [] [ text "Yes - right" ]
-                        , H.option [] [ text "Yes - bilateral" ]
-                        ]
                     , choiceField "PIRADS 2.1 score:"
                         [ H.option [] [ text "2" ]
                         , H.option [] [ text "3" ]
@@ -596,57 +651,16 @@ lesionForm imageURL heading maybeLesion =
                         , H.option [] [ text "Yes - TZ DWI" ]
                         , H.option [ A.selected True ] [ text "No" ]
                         ]
-                    , textAreaField "Any additional findings?"
                     ]
+                , button
                 ]
 
         Nothing ->
-            H.section [ class "text-center mt-6 mb-2" ] []
+            H.section [ class "text-center mt-6 mb-2" ] [ button ]
 
 
 view : Model -> Html Msg
 view model =
-    let
-        newStyle =
-            "text-white bg-teal-400"
-
-        deleteStyle =
-            "text-gray-200 bg-red-600"
-
-        basicButton =
-            \lesionNumber label styleClass ->
-                button
-                    [ class <| "block border p-1 mx-auto mt-1 mb-4 rounded text-sm " ++ styleClass
-                    , A.type_ "button"
-                    , Evt.onClick <| ToggleLesionForm lesionNumber
-                    ]
-                    [ text label ]
-
-        primaryLesionButton =
-            case ( model.first, model.second ) of
-                ( Nothing, Nothing ) ->
-                    basicButton First "Add index lesion" newStyle
-
-                ( Nothing, Just _ ) ->
-                    basicButton First "Delete index lesion" deleteStyle
-
-                ( Just _, Nothing ) ->
-                    basicButton First "Delete index lesion" deleteStyle
-
-                ( Just _, Just _ ) ->
-                    text ""
-
-        secondaryLesionButton =
-            case ( model.first, model.second ) of
-                ( Just _, Nothing ) ->
-                    basicButton Second "Add secondary lesion (optional)" newStyle
-
-                ( Just _, Just _ ) ->
-                    basicButton Second "Delete secondary lesion" deleteStyle
-
-                ( Nothing, _ ) ->
-                    text ""
-    in
     H.form [ class "container mx-auto max-w-lg" ]
         [ H.h1 [ class "font-serif text-3xl text-center pb-10" ] [ text "R-PEDAL MRI Data Entry" ]
         , H.section [ class "text-center pb-8" ]
@@ -656,11 +670,20 @@ view model =
                 , numberField "PSA level:" "psa-level"
                 ]
             ]
-        , lesionForm model.lesionMapUrl "Index lesion" model.first
-        , primaryLesionButton
-        , lesionForm model.lesionMapUrl "Secondary lesion (optional)" model.second
-        , secondaryLesionButton
-        , button [ class "block border rounded p-1 my-4 mx-auto my-1 bg-blue-600 text-gray-200 text-lg shadow-md", A.type_ "button" ] [ text "Submit" ]
+        , lesionForm model First
+        , lesionForm model Second
+        , choiceField "ECE: "
+            [ H.option [] [ text "Yes" ]
+            , H.option [ A.selected True ] [ text "No" ]
+            ]
+        , choiceField "SVI: "
+            [ H.option [ A.selected True ] [ text "No" ]
+            , H.option [] [ text "Yes - left" ]
+            , H.option [] [ text "Yes - right" ]
+            , H.option [] [ text "Yes - bilateral" ]
+            ]
+        , textAreaField "Any additional findings?"
+        , H.button [ class "block border rounded p-1 my-4 mx-auto my-1 bg-blue-600 text-gray-200 text-lg shadow-md", A.type_ "button" ] [ text "Submit" ]
         ]
 
 
