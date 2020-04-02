@@ -576,18 +576,18 @@ lesionForm model lesionNumber =
                     "Index lesion"
 
                 Second ->
-                    "Secondary lesion (optional)"
+                    "Optional lesion"
 
         newStyle =
-            "text-white bg-teal-400"
+            "text-gray-200 bg-teal-600"
 
         deleteStyle =
-            "text-gray-100 bg-red-600"
+            "text-gray-200 bg-red-600"
 
         basicButton =
             \n label styleClass ->
                 H.button
-                    [ class <| "block border p-1 mx-auto mt-1 mb-4 rounded text-sm " ++ styleClass
+                    [ class <| "block border p-1 mx-auto my-4 rounded text-sm " ++ styleClass
                     , A.type_ "button"
                     , Evt.onClick <| ToggleLesionForm n
                     ]
@@ -628,12 +628,12 @@ lesionForm model lesionNumber =
     in
     case maybeLesion of
         Just lesion ->
-            H.section [ class "text-center border mt-6 mb-2 transition-all duration-500 ease-in-out hover:border-2 hover:shadow-md" ]
+            H.section [ class "text-center border mt-6 mb-2 transition-all duration-200 ease-in-out hover:border-2 hover:shadow-md" ]
                 [ div [ class "px-auto" ]
                     [ div [ class "relative mx-auto", A.style "width" "462px", A.style "height" "551px" ]
                         [ H.img [ A.src model.lesionMapUrl, A.usemap "#imageMap", class "w-full absolute" ] []
                         , S.svg [ SA.viewBox "0 0 652 780", SA.class "absolute" ] <| lesionMap lesion.name
-                        , p [ class "absolute top-0 left-0 text-center font-serif text-2xl pt-4 w-full" ] [ text heading ]
+                        , p [ class "absolute top-0 left-0 text-center font-bold font-serif text-2xl pt-4 w-full" ] [ text heading ]
                         ]
                     ]
                 , div [ class "px-14 text-left" ]
@@ -656,14 +656,14 @@ lesionForm model lesionNumber =
                 ]
 
         Nothing ->
-            H.section [ class "text-center mt-6 mb-2" ] [ button ]
+            H.section [ class "text-center mt-3 mb-6" ] [ button ]
 
 
 view : Model -> Html Msg
 view model =
-    H.form [ class "container mx-auto max-w-lg" ]
+    H.form [ class "container mx-auto max-w-lg my-10" ]
         [ H.h1 [ class "font-serif text-3xl text-center pb-10" ] [ text "R-PEDAL MRI Data Entry" ]
-        , H.section [ class "text-center pb-8" ]
+        , H.section [ class "text-center pb-4" ]
             [ div [ class "px-14" ]
                 [ inputField "Patient ID:" "patient-id"
                 , dateField "MRI date:" "mri-date"
@@ -683,7 +683,7 @@ view model =
             , H.option [] [ text "Yes - bilateral" ]
             ]
         , textAreaField "Any additional findings?"
-        , H.button [ class "block border rounded p-1 my-4 mx-auto my-1 bg-blue-600 text-gray-200 text-lg shadow-md", A.type_ "button" ] [ text "Submit" ]
+        , H.button [ class "block border rounded py-1 px-2 my-4 mx-auto my-1 bg-blue-600 text-gray-200 text-lg shadow-md", A.type_ "button" ] [ text "Submit" ]
         ]
 
 
