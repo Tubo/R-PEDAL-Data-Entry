@@ -11,9 +11,28 @@ import Svg.Events as SE
 
 type alias Model =
     { lesionMapUrl : String
+    , patientId : String
+    , mriDate : String
+    , psaLevel : String
     , first : Maybe LesionData
     , second : Maybe LesionData
+    , ece : String
+    , svi : String
+    , comments : String
     }
+
+
+type Field
+    = PatientId
+    | MriDate
+    | PsaLevel
+    | ECE
+    | SVI
+    | Comments
+    | LesionSize LesionNumber
+    | ADC LesionNumber
+    | Score LesionNumber
+    | Upgraded LesionNumber
 
 
 type alias Area =
@@ -36,18 +55,28 @@ type alias LesionData =
     , location : ( Maybe Location, Maybe Location )
     , size : String
     , adc : String
+    , score : String
     , upgraded : String
     }
 
 
 initLesionData : LesionNumber -> LesionData
 initLesionData n =
-    LesionData n ( Nothing, Nothing ) "" "" ""
+    LesionData n ( Nothing, Nothing ) "" "" "" ""
 
 
 init : String -> ( Model, Cmd Msg )
 init lesionMapUrl =
-    ( Model lesionMapUrl Nothing Nothing
+    ( { lesionMapUrl = lesionMapUrl
+      , patientId = ""
+      , mriDate = ""
+      , psaLevel = ""
+      , first = Nothing
+      , second = Nothing
+      , ece = ""
+      , svi = ""
+      , comments = ""
+      }
     , Cmd.none
     )
 
@@ -56,6 +85,26 @@ type Msg
     = ClickArea LesionNumber Area String
     | DeleteLocation LesionNumber
     | ToggleLesionForm LesionNumber
+    | UpdateField Field String
+
+
+updateLesion : Field -> String -> LesionData -> LesionData
+updateLesion dataField data oldLesion =
+    case dataField of
+        LesionSize _ ->
+            { oldLesion | size = data }
+
+        ADC _ ->
+            { oldLesion | adc = data }
+
+        Score _ ->
+            { oldLesion | score = data }
+
+        Upgraded _ ->
+            { oldLesion | upgraded = data }
+
+        _ ->
+            oldLesion
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -149,35 +198,152 @@ update msg model =
                 ( Second, Nothing ) ->
                     ( { model | second = Just (initLesionData Second) }, Cmd.none )
 
+        UpdateField fieldType data ->
+            case fieldType of
+                PatientId ->
+                    ( { model | patientId = data }, Cmd.none )
+
+                MriDate ->
+                    ( { model | mriDate = data }, Cmd.none )
+
+                PsaLevel ->
+                    ( { model | psaLevel = data }, Cmd.none )
+
+                ECE ->
+                    ( { model | ece = data }, Cmd.none )
+
+                SVI ->
+                    ( { model | svi = data }, Cmd.none )
+
+                Comments ->
+                    ( { model | comments = data }, Cmd.none )
+
+                LesionSize lesionNumber ->
+                    let
+                        lesion =
+                            case lesionNumber of
+                                First ->
+                                    model.first
+
+                                Second ->
+                                    model.second
+
+                        newLesion =
+                            Maybe.map (updateLesion (LesionSize lesionNumber) data) lesion
+                    in
+                    case lesionNumber of
+                        First ->
+                            ( { model | first = newLesion }, Cmd.none )
+
+                        Second ->
+                            ( { model | second = newLesion }, Cmd.none )
+
+                ADC lesionNumber ->
+                    let
+                        lesion =
+                            case lesionNumber of
+                                First ->
+                                    model.first
+
+                                Second ->
+                                    model.second
+
+                        newLesion =
+                            Maybe.map (updateLesion (ADC lesionNumber) data) lesion
+                    in
+                    case lesionNumber of
+                        First ->
+                            ( { model | first = newLesion }, Cmd.none )
+
+                        Second ->
+                            ( { model | second = newLesion }, Cmd.none )
+
+                Score lesionNumber ->
+                    let
+                        lesion =
+                            case lesionNumber of
+                                First ->
+                                    model.first
+
+                                Second ->
+                                    model.second
+
+                        newLesion =
+                            Maybe.map (updateLesion (Score lesionNumber) data) lesion
+                    in
+                    case lesionNumber of
+                        First ->
+                            ( { model | first = newLesion }, Cmd.none )
+
+                        Second ->
+                            ( { model | second = newLesion }, Cmd.none )
+
+                Upgraded lesionNumber ->
+                    let
+                        lesion =
+                            case lesionNumber of
+                                First ->
+                                    model.first
+
+                                Second ->
+                                    model.second
+
+                        newLesion =
+                            Maybe.map (updateLesion (Upgraded lesionNumber) data) lesion
+                    in
+                    case lesionNumber of
+                        First ->
+                            ( { model | first = newLesion }, Cmd.none )
+
+                        Second ->
+                            ( { model | second = newLesion }, Cmd.none )
+
 
 field : String -> List (Html Msg) -> Html Msg
 field label inner =
     p [ class "py-2 text-center" ] <| List.append [ span [ class "mr-8 w-48 inline-block text-right font-medium" ] [ text label ] ] inner
 
 
-textAreaField : String -> Html Msg
-textAreaField label =
-    field label <| [ H.textarea [ class "w-48 border align-top text-sm mr-16" ] [] ]
+textAreaField : String -> Field -> Html Msg
+textAreaField label dataField =
+    field label <| [ H.textarea [ class "w-48 border align-top text-sm mr-16", Evt.onInput (UpdateField dataField) ] [] ]
 
 
-inputField : String -> String -> Html Msg
-inputField label name =
-    field label <| [ input [ A.type_ "text", A.name name, class "border w-48 mr-16" ] [] ]
+inputField : String -> String -> Field -> Html Msg
+inputField label name dataField =
+    field label <| [ input [ A.type_ "text", A.name name, class "border w-48 mr-16", Evt.onInput (UpdateField dataField) ] [] ]
 
 
-dateField : String -> String -> Html Msg
-dateField label name =
-    field label <| [ input [ A.type_ "date", A.name name, class "border w-48 mr-16" ] [] ]
+dateField : String -> String -> Field -> Html Msg
+dateField label name dataField =
+    field label <|
+        [ input
+            [ A.type_ "date"
+            , A.name name
+            , class "border w-48 mr-16"
+            , A.pattern "\\d{4}-\\d{2}-\\d{2}"
+            , Evt.onInput (UpdateField dataField)
+            ]
+            []
+        ]
 
 
-numberField : String -> String -> Html Msg
-numberField label name =
-    field label <| [ input [ A.type_ "number", A.name name, class "border w-48 mr-16" ] [] ]
+numberField : String -> String -> Field -> Html Msg
+numberField label name dataField =
+    field label <|
+        [ input
+            [ A.type_ "number"
+            , A.name name
+            , class "border w-48 mr-16"
+            , Evt.onInput (UpdateField dataField)
+            ]
+            []
+        ]
 
 
-choiceField : String -> List (Html Msg) -> Html Msg
-choiceField label options =
-    field label [ H.select [ class "border w-48 px-6 mr-16" ] options ]
+choiceField : String -> List (Html Msg) -> Field -> Html Msg
+choiceField label options dataField =
+    field label [ H.select [ class "border w-48 mr-16", Evt.onInput (UpdateField dataField) ] options ]
 
 
 type alias Coords =
@@ -638,19 +804,21 @@ lesionForm model lesionNumber =
                     ]
                 , div [ class "px-14 text-left" ]
                     [ lesionLocation lesion
-                    , numberField "Lesion size (mm):" "lesion-size"
-                    , inputField "ADC:" "adc"
+                    , numberField "Lesion size (mm):" "lesion-size" (LesionSize lesion.name)
+                    , inputField "ADC:" "adc" (ADC lesion.name)
                     , choiceField "PIRADS 2.1 score:"
                         [ H.option [] [ text "2" ]
                         , H.option [] [ text "3" ]
                         , H.option [] [ text "4" ]
                         , H.option [] [ text "5" ]
                         ]
+                        (Score lesion.name)
                     , choiceField "PIRADS 2.1 upgraded?"
                         [ H.option [] [ text "Yes - PZ DCE" ]
                         , H.option [] [ text "Yes - TZ DWI" ]
                         , H.option [ A.selected True ] [ text "No" ]
                         ]
+                        (Upgraded lesion.name)
                     ]
                 , button
                 ]
@@ -665,9 +833,9 @@ view model =
         [ H.h1 [ class "font-serif text-3xl text-center pb-10" ] [ text "R-PEDAL MRI Data Entry" ]
         , H.section [ class "text-center pb-4" ]
             [ div [ class "px-14" ]
-                [ inputField "Patient ID:" "patient-id"
-                , dateField "MRI date:" "mri-date"
-                , numberField "PSA level:" "psa-level"
+                [ inputField "Patient ID:" "patient-id" PatientId
+                , dateField "MRI date:" "mri-date" MriDate
+                , numberField "PSA level:" "psa-level" PsaLevel
                 ]
             ]
         , lesionForm model First
@@ -676,13 +844,15 @@ view model =
             [ H.option [] [ text "Yes" ]
             , H.option [ A.selected True ] [ text "No" ]
             ]
+            ECE
         , choiceField "SVI: "
             [ H.option [ A.selected True ] [ text "No" ]
             , H.option [] [ text "Yes - left" ]
             , H.option [] [ text "Yes - right" ]
             , H.option [] [ text "Yes - bilateral" ]
             ]
-        , textAreaField "Any additional findings?"
+            SVI
+        , textAreaField "Any additional findings?" Comments
         , H.button [ class "block border rounded py-1 px-2 my-4 mx-auto my-1 bg-blue-600 text-gray-200 text-lg shadow-md", A.type_ "button" ] [ text "Submit" ]
         ]
 
