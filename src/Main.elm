@@ -168,7 +168,7 @@ entryDecoder =
 postEntry : Model -> Cmd Msg
 postEntry model =
     Http.post
-        { url = "http://r-pedal-backend.apps.tubo.nz/"
+        { url = "https://r-pedal-backend.apps.tubo.nz/"
         , body = Http.jsonBody <| entryEncoder model
         , expect = Http.expectJson GotEntry entryDecoder
         }
