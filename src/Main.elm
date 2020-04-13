@@ -4,6 +4,10 @@ import Browser
 import Html as H exposing (Html, div, input, label, p, span, text)
 import Html.Attributes as A exposing (alt, class, name, title)
 import Html.Events as Evt
+import Http
+import Json.Decode as Decode
+import Json.Encode as Encode
+import Json.Encode.Extra as EX
 import Svg as S
 import Svg.Attributes as SA
 import Svg.Events as SE
@@ -19,7 +23,16 @@ type alias Model =
     , ece : String
     , svi : String
     , comments : String
+    , status : Status
     }
+
+
+type Status
+    = Incomplete
+    | Ready
+    | Sending
+    | Success
+    | Error String
 
 
 type Field
@@ -62,7 +75,13 @@ type alias LesionData =
 
 initLesionData : LesionNumber -> LesionData
 initLesionData n =
-    LesionData n ( Nothing, Nothing ) "" "" "" ""
+    { name = n
+    , location = ( Nothing, Nothing )
+    , size = ""
+    , adc = ""
+    , score = "2"
+    , upgraded = "NO"
+    }
 
 
 init : String -> ( Model, Cmd Msg )
@@ -73,12 +92,90 @@ init lesionMapUrl =
       , psaLevel = ""
       , first = Nothing
       , second = Nothing
-      , ece = ""
-      , svi = ""
+      , ece = "NO"
+      , svi = "NO"
       , comments = ""
+      , status = Incomplete
       }
     , Cmd.none
     )
+
+
+
+-- CMD
+
+
+entryEncoder : Model -> Encode.Value
+entryEncoder model =
+    let
+        lesionList list =
+            List.filter
+                (\e ->
+                    case e of
+                        Nothing ->
+                            False
+
+                        Just _ ->
+                            True
+                )
+                list
+    in
+    Encode.object
+        [ ( "patient_id", Encode.string model.patientId )
+        , ( "mri_date", Encode.string model.mriDate )
+        , ( "psa_level", Encode.string model.psaLevel )
+        , ( "ece", Encode.string model.ece )
+        , ( "svi", Encode.string model.svi )
+        , ( "comments", Encode.string model.comments )
+        , ( "lesions", Encode.list lesionEncoder <| lesionList [ model.first, model.second ] )
+        ]
+
+
+lesionEncoder : Maybe LesionData -> Encode.Value
+lesionEncoder maybeLesion =
+    case maybeLesion of
+        Nothing ->
+            Encode.null
+
+        Just lesion ->
+            let
+                name =
+                    case lesion.name of
+                        First ->
+                            "index"
+
+                        Second ->
+                            "additional"
+            in
+            Encode.object
+                [ ( "name", Encode.string name )
+                , ( "locations"
+                  , Encode.list (EX.maybe (Encode.string << .name))
+                        [ Tuple.first lesion.location, Tuple.second lesion.location ]
+                  )
+                , ( "size", Encode.string lesion.size )
+                , ( "adc", Encode.string lesion.adc )
+                , ( "score", Encode.string lesion.score )
+                , ( "upgraded", Encode.string lesion.upgraded )
+                ]
+
+
+entryDecoder : Decode.Decoder String
+entryDecoder =
+    Decode.succeed "Success"
+
+
+postEntry : Model -> Cmd Msg
+postEntry model =
+    Http.post
+        { url = "http://r-pedal-backend.apps.tubo.nz/"
+        , body = Http.jsonBody <| entryEncoder model
+        , expect = Http.expectJson GotEntry entryDecoder
+        }
+
+
+
+-- Msg and Update
 
 
 type Msg
@@ -86,6 +183,8 @@ type Msg
     | DeleteLocation LesionNumber
     | ToggleLesionForm LesionNumber
     | UpdateField Field String
+    | SubmitEntry
+    | GotEntry (Result Http.Error String)
 
 
 updateLesion : Field -> String -> LesionData -> LesionData
@@ -298,6 +397,17 @@ update msg model =
                         Second ->
                             ( { model | second = newLesion }, Cmd.none )
 
+        GotEntry result ->
+            case result of
+                Ok _ ->
+                    ( { model | status = Success }, Cmd.none )
+
+                Err _ ->
+                    ( { model | status = Error "Double check your fields" }, Cmd.none )
+
+        SubmitEntry ->
+            ( { model | status = Sending }, postEntry model )
+
 
 field : String -> List (Html Msg) -> Html Msg
 field label inner =
@@ -311,7 +421,16 @@ textAreaField label dataField =
 
 inputField : String -> String -> Field -> Html Msg
 inputField label name dataField =
-    field label <| [ input [ A.type_ "text", A.name name, class "border w-48 mr-16", Evt.onInput (UpdateField dataField) ] [] ]
+    field label <|
+        [ input
+            [ A.type_ "text"
+            , A.required True
+            , A.name name
+            , class "border w-48 mr-16"
+            , Evt.onInput (UpdateField dataField)
+            ]
+            []
+        ]
 
 
 dateField : String -> String -> Field -> Html Msg
@@ -323,6 +442,7 @@ dateField label name dataField =
             , class "border w-48 mr-16"
             , A.pattern "\\d{4}-\\d{2}-\\d{2}"
             , Evt.onInput (UpdateField dataField)
+            , A.required False
             ]
             []
         ]
@@ -805,18 +925,18 @@ lesionForm model lesionNumber =
                 , div [ class "px-14 text-left" ]
                     [ lesionLocation lesion
                     , numberField "Lesion size (mm):" "lesion-size" (LesionSize lesion.name)
-                    , inputField "ADC:" "adc" (ADC lesion.name)
+                    , numberField "ADC:" "adc" (ADC lesion.name)
                     , choiceField "PIRADS 2.1 score:"
-                        [ H.option [] [ text "2" ]
-                        , H.option [] [ text "3" ]
-                        , H.option [] [ text "4" ]
-                        , H.option [] [ text "5" ]
+                        [ H.option [ A.value "2", A.selected (lesion.score == "2") ] [ text "2" ]
+                        , H.option [ A.value "3", A.selected (lesion.score == "3") ] [ text "3" ]
+                        , H.option [ A.value "4", A.selected (lesion.score == "4") ] [ text "4" ]
+                        , H.option [ A.value "5", A.selected (lesion.score == "5") ] [ text "5" ]
                         ]
                         (Score lesion.name)
                     , choiceField "PIRADS 2.1 upgraded?"
-                        [ H.option [] [ text "Yes - PZ DCE" ]
-                        , H.option [] [ text "Yes - TZ DWI" ]
-                        , H.option [ A.selected True ] [ text "No" ]
+                        [ H.option [ A.value "PZ DCE" ] [ text "Yes - PZ DCE" ]
+                        , H.option [ A.value "TZ DWI" ] [ text "Yes - TZ DWI" ]
+                        , H.option [ A.selected True, A.value "NO" ] [ text "No" ]
                         ]
                         (Upgraded lesion.name)
                     ]
@@ -825,6 +945,42 @@ lesionForm model lesionNumber =
 
         Nothing ->
             H.section [ class "text-center mt-3 mb-6" ] [ button ]
+
+
+submitButton : Status -> Html Msg
+submitButton status =
+    case status of
+        Sending ->
+            H.button
+                [ class "block border border-yellow-600 rounded py-1 px-2 my-4 mx-auto my-1 bg-blue-600 text-gray-200 text-lg shadow-md"
+                , A.type_ "button"
+                , Evt.onClick SubmitEntry
+                ]
+                [ text "Sending..." ]
+
+        Success ->
+            H.button
+                [ class "block border border-green-600 rounded py-1 px-2 my-4 mx-auto my-1 bg-blue-600 text-gray-200 text-lg shadow-md"
+                , A.type_ "button"
+                , Evt.onClick SubmitEntry
+                ]
+                [ text "Success" ]
+
+        Error _ ->
+            H.button
+                [ class "block border border-red-600 rounded py-1 px-2 my-4 mx-auto my-1 bg-red-600 text-gray-200 text-lg shadow-md"
+                , A.type_ "button"
+                , Evt.onClick SubmitEntry
+                ]
+                [ text "Error - Check your form" ]
+
+        _ ->
+            H.button
+                [ class "block border rounded py-1 px-2 my-4 mx-auto my-1 bg-blue-600 text-gray-200 text-lg shadow-md"
+                , A.type_ "button"
+                , Evt.onClick SubmitEntry
+                ]
+                [ text "Submit" ]
 
 
 view : Model -> Html Msg
@@ -841,19 +997,19 @@ view model =
         , lesionForm model First
         , lesionForm model Second
         , choiceField "ECE: "
-            [ H.option [] [ text "Yes" ]
-            , H.option [ A.selected True ] [ text "No" ]
+            [ H.option [ A.value "true" ] [ text "Yes" ]
+            , H.option [ A.value "false", A.selected True ] [ text "No" ]
             ]
             ECE
         , choiceField "SVI: "
-            [ H.option [ A.selected True ] [ text "No" ]
-            , H.option [] [ text "Yes - left" ]
-            , H.option [] [ text "Yes - right" ]
-            , H.option [] [ text "Yes - bilateral" ]
+            [ H.option [ A.value "NO", A.selected True ] [ text "No" ]
+            , H.option [ A.value "LEFT" ] [ text "Yes - left" ]
+            , H.option [ A.value "RIGHT" ] [ text "Yes - right" ]
+            , H.option [ A.value "BILATERAL" ] [ text "Yes - bilateral" ]
             ]
             SVI
         , textAreaField "Any additional findings?" Comments
-        , H.button [ class "block border rounded py-1 px-2 my-4 mx-auto my-1 bg-blue-600 text-gray-200 text-lg shadow-md", A.type_ "button" ] [ text "Submit" ]
+        , submitButton model.status
         ]
 
 
