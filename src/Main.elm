@@ -753,7 +753,7 @@ lesionForm lesionMapUrl lesion =
 
         deleteButton =
             H.button
-                [ class <| "block border-red-600 p-1 mx-auto mt-6 mb-2 rounded text-sm text-white bg-red-600"
+                [ class <| "block border-red-600 p-1 mx-auto mt-6 mb-2 rounded text-sm text-white bg-red-600 shadow"
                 , A.type_ "button"
                 , Evt.onClick <| DeleteLesion lesion
                 ]
