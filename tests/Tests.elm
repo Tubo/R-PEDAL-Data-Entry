@@ -1,7 +1,10 @@
-module Tests exposing (..)
+module Tests exposing (all)
 
-import Test exposing (..)
 import Expect
+import Json.Encode as Encode
+import Json.Encode.Extra as EX
+import Test exposing (..)
+
 
 
 -- Check out https://package.elm-lang.org/packages/elm-explorations/test/latest to learn more about testing in Elm!
@@ -9,14 +12,10 @@ import Expect
 
 all : Test
 all =
-    describe "A Test Suite"
-        [ test "Addition" <|
+    describe "Encoding of the post request"
+        [ test "Encode lesion" <|
             \_ ->
-                Expect.equal 10 (3 + 7)
-        , test "String.left" <|
-            \_ ->
-                Expect.equal "a" (String.left 1 "abcdefg")
-        , test "This test should fail" <|
-            \_ ->
-                Expect.fail "failed as expected!"
+                Expect.equal
+                    (Encode.encode 0 ((Encode.string << .name) { name = "Hello" }))
+                    "\"Hello\""
         ]
