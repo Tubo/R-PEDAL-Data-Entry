@@ -108,8 +108,7 @@ entryEncoder model =
 lesionEncoder : LesionData -> Encode.Value
 lesionEncoder lesion =
     Encode.object
-        [ ( "id", Encode.int lesion.id )
-        , ( "locations", Encode.list (Encode.string << .name) lesion.location )
+        [ ( "locations", Encode.list (Encode.string << .name) lesion.location )
         , ( "size", Encode.string lesion.size )
         , ( "adc", Encode.string lesion.adc )
         , ( "score", Encode.string lesion.score )
@@ -227,7 +226,7 @@ update msg model =
                 Score data ->
                     let
                         newLesion =
-                            { lesion | adc = data }
+                            { lesion | score = data }
                     in
                     ( { model | lesions = updateLesionList newLesion model.lesions }, Cmd.none )
 
