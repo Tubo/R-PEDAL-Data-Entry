@@ -818,7 +818,7 @@ newLesionButton lesions =
                 "Add index lesion"
 
             else if lesionNumber >= 4 then
-                "Limit lesion number reached"
+                "Lesion number limit reached"
 
             else
                 "Add an additional lesion"
