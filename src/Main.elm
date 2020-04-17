@@ -383,8 +383,16 @@ singleRegionOverlay lesion name label coords shape =
         onClick =
             \n l -> SE.onClick <| ModifyLesion lesion (ClickArea n l)
 
-        hoverColor =
-            "text-transparent hover:text-teal-200 fill-current"
+        hoverColorClass =
+            SA.class "text-transparent hover:text-red-600 fill-current"
+
+        selectedColorClass =
+            SA.class <|
+                if List.any (\loc -> name == loc.name) lesion.location then
+                    "text-red-600"
+
+                else
+                    ""
     in
     case shape of
         "poly" ->
@@ -395,7 +403,8 @@ singleRegionOverlay lesion name label coords shape =
             S.polygon
                 [ SA.points coordsString
                 , onClick name label
-                , SA.class hoverColor
+                , hoverColorClass
+                , selectedColorClass
                 ]
                 []
 
@@ -421,7 +430,8 @@ singleRegionOverlay lesion name label coords shape =
                         , SA.width w
                         , SA.height h
                         , onClick name label
-                        , SA.class hoverColor
+                        , hoverColorClass
+                        , selectedColorClass
                         ]
                         []
 
@@ -446,7 +456,8 @@ singleRegionOverlay lesion name label coords shape =
                         , SA.cy cy
                         , SA.r cr
                         , onClick name label
-                        , SA.class hoverColor
+                        , hoverColorClass
+                        , selectedColorClass
                         ]
                         []
 
