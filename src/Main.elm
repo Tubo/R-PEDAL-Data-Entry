@@ -183,19 +183,11 @@ update msg model =
                 ClickArea newLocation newLabel ->
                     let
                         newLocationList =
-                            case lesion.location of
-                                [] ->
-                                    [ Location newLocation newLabel ]
+                            if List.length lesion.location < 4 then
+                                lesion.location ++ [ Location newLocation newLabel ]
 
-                                [ a ] ->
-                                    if a.name == newLocation then
-                                        [ a ]
-
-                                    else
-                                        [ a, Location newLocation newLabel ]
-
-                                _ ->
-                                    lesion.location
+                            else
+                                lesion.location
 
                         newLesion =
                             { lesion | location = newLocationList }
@@ -721,7 +713,7 @@ lesionLocation lesion =
     let
         locationField =
             \{ name, label } ->
-                span [ class "border p-1 mx-1 font-mono text-xs rounded cursor-default inline-block w-18 " ] [ text label ]
+                span [ class "border p-1 mx-1 font-mono text-xs text-center rounded cursor-default inline-block w-12 " ] [ text label ]
 
         resetIcon =
             span
@@ -735,11 +727,11 @@ lesionLocation lesion =
     case lesion.location of
         [] ->
             genericField "Lesion location:"
-                [ span [ class "inline-block font-mono text-xs w-48 mr-16" ] [ text "None selected" ] ]
+                [ span [ class "inline-block font-mono text-xs text-left w-64 mr-0" ] [ text "None selected" ] ]
 
         location ->
             genericField "Lesion location:"
-                [ span [ class "mr-8 w-48" ] <|
+                [ span [ class "inline-block w-64 pl-0 text-left" ] <|
                     List.map locationField location
                         ++ [ resetIcon ]
                 ]
@@ -817,23 +809,23 @@ newLesionButton lesions =
             if lesionNumber == 0 then
                 "Add index lesion"
 
-            else if lesionNumber >= 4 then
-                "Lesion number limit reached"
+            else if lesionNumber == 1 then
+                "Add an additional lesion"
 
             else
-                "Add an additional lesion"
+                "Lesion number limit reached"
     in
     H.button
         [ class "block mx-auto py-1 px-2 my-8 my-1 "
         , class
-            (if lesionNumber >= 4 then
+            (if lesionNumber >= 2 then
                 "text-black text-sm underline cursor-default"
 
              else
                 "bg-green-600 text-gray-200 border rounded text-lg shadow-md"
             )
         , A.type_ "button"
-        , A.disabled (lesionNumber >= 4)
+        , A.disabled (lesionNumber >= 2)
         , Evt.onClick AddLesion
         ]
         [ text buttonText ]
