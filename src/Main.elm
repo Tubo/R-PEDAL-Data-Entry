@@ -7,6 +7,7 @@ import Html.Events as Evt
 import Http
 import Json.Decode as Decode
 import Json.Encode as Encode
+import Json.Encode.Extra exposing (maybe)
 import Svg as S
 import Svg.Attributes as SA
 import Svg.Events as SE
@@ -17,6 +18,18 @@ type Model
     | MRI LesionUrl MriForm
     | PSMA LesionUrl PsmaForm
     | Pathology LesionUrl PathologyForm
+
+
+type alias GenericForm a =
+    { a
+        | status : Status
+    }
+
+
+type alias GenericLesion a =
+    { a
+        | id : Id
+    }
 
 
 type alias MriForm =
@@ -46,6 +59,7 @@ type alias PathologyForm =
     { patientId : String
     , procedureDate : String
     , comments : String
+    , specimenType : PathologySpecimen
     , lesions : List PathologyLesion
     , status : Status
     }
@@ -63,6 +77,11 @@ type alias PathologyLesion =
     , locSide : String
     , locZone : String
     }
+
+
+type PathologySpecimen
+    = Biopsy
+    | Prostatectomy
 
 
 type alias PsmaForm =
@@ -146,7 +165,7 @@ initPathologyLesion : Id -> PathologyLesion
 initPathologyLesion id =
     { id = id
     , isIndex = False
-    , grade = ""
+    , grade = "NONE"
     , size = ""
     , greatestPercentage = ""
     , positiveCore = ""
@@ -162,6 +181,7 @@ initPathologyForm =
     { patientId = ""
     , procedureDate = ""
     , comments = ""
+    , specimenType = Biopsy
     , lesions = []
     , status = Incomplete
     }
@@ -188,7 +208,7 @@ initPsmaForm =
 
 init : LesionUrl -> ( Model, Cmd Msg )
 init lesionUrl =
-    ( MRI lesionUrl initMriForm, Cmd.none )
+    ( SelectForm lesionUrl, Cmd.none )
 
 
 
@@ -252,13 +272,26 @@ pathologyFormEncoder form =
 
 pathologyLesionEncoder : PathologyLesion -> Encode.Value
 pathologyLesionEncoder lesion =
+    let
+        lesionSize =
+            String.toInt lesion.size
+
+        positiveCore =
+            String.toInt lesion.positiveCore
+
+        totalCore =
+            String.toInt lesion.totalCore
+
+        greatestPercentage =
+            String.toInt lesion.greatestPercentage
+    in
     Encode.object
         [ ( "is_index", Encode.bool lesion.isIndex )
         , ( "grade", Encode.string lesion.grade )
-        , ( "greatest_percentage", Encode.string lesion.greatestPercentage )
-        , ( "positive_core", Encode.string lesion.positiveCore )
-        , ( "total_core", Encode.string lesion.totalCore )
-        , ( "lesion_size", Encode.string lesion.lesionSize )
+        , ( "greatest_percentage", maybe Encode.int greatestPercentage )
+        , ( "positive_core", maybe Encode.int positiveCore )
+        , ( "total_core", maybe Encode.int totalCore )
+        , ( "lesion_size", maybe Encode.int lesionSize )
         , ( "loc_side", Encode.string lesion.locSide )
         , ( "loc_zone", Encode.string lesion.locZone )
         ]
@@ -346,8 +379,8 @@ type PathologyField
     | PathologyComments String
     | SpecimenType String
     | UpdatePathologyLesion PathologyLesion PathologyLesionField
-    | AddLesion
-    | DeleteLesion PathologyLesion
+    | AddPathologyLesion
+    | DeletePathologyLesion PathologyLesion
 
 
 type PathologyLesionField
@@ -356,8 +389,8 @@ type PathologyLesionField
     | PositiveCore String
     | TotalCore String
     | GreatestPercentage String
-    | Side String
-    | Zone String
+    | PathologySide String
+    | PathologyZone String
 
 
 type Pages
@@ -374,10 +407,10 @@ type Msg
     | ResetForm
     | SubmitEntry
     | GotEntry (Result Http.Error String)
-    | GotoPage Pages LesionUrl
+    | GotoPage Pages
 
 
-updateLesionList : MriLesion -> List MriLesion -> List MriLesion
+updateLesionList : GenericLesion a -> List (GenericLesion a) -> List (GenericLesion a)
 updateLesionList lesion list =
     List.map
         (\l ->
@@ -392,13 +425,26 @@ updateLesionList lesion list =
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
+    let
+        lesionMapUrl =
+            case model of
+                SelectForm lesionUrl ->
+                    lesionUrl
+
+                MRI lesionUrl _ ->
+                    lesionUrl
+
+                PSMA lesionUrl _ ->
+                    lesionUrl
+
+                Pathology lesionUrl _ ->
+                    lesionUrl
+    in
     case ( model, msg ) of
         ( MRI url form, UpdateMriForm mriField ) ->
             case mriField of
                 MriPatientId string ->
-                    ( MRI url { form | patientId = string }
-                    , Cmd.none
-                    )
+                    ( MRI url { form | patientId = string }, Cmd.none )
 
                 MriDate string ->
                     ( MRI url { form | mriDate = string }, Cmd.none )
@@ -445,11 +491,17 @@ update msg model =
 
                 UpdateMriLesion lesion mriLesionField ->
                     case mriLesionField of
-                        ClickMapMri newLocation newLabel ->
+                        ClickMapMri newLocName newLocLabel ->
                             let
+                                newLocation =
+                                    Location newLocName newLocLabel
+
                                 newLocationList =
-                                    if List.length lesion.location < 4 then
-                                        lesion.location ++ [ Location newLocation newLabel ]
+                                    if
+                                        (List.length lesion.location < 4)
+                                            && not (List.member newLocation lesion.location)
+                                    then
+                                        lesion.location ++ [ Location newLocName newLocLabel ]
 
                                     else
                                         lesion.location
@@ -511,6 +563,170 @@ update msg model =
                             , Cmd.none
                             )
 
+        ( PSMA _ form, UpdatePsmaForm psmaField ) ->
+            case psmaField of
+                PsmaPatientId string ->
+                    ( PSMA lesionMapUrl { form | patientId = string }, Cmd.none )
+
+                PsmaDate string ->
+                    ( PSMA lesionMapUrl { form | psmaDate = string }, Cmd.none )
+
+                PsmaComments string ->
+                    ( PSMA lesionMapUrl { form | comments = string }, Cmd.none )
+
+                UpdatePsmaLesion lesion psmaLesionField ->
+                    case psmaLesionField of
+                        ClickMapPsma newLocName newLocLabel ->
+                            let
+                                newLocation =
+                                    Location newLocName newLocLabel
+
+                                newLocationList =
+                                    if
+                                        (List.length lesion.location < 4)
+                                            && not (List.member newLocation lesion.location)
+                                    then
+                                        lesion.location ++ [ Location newLocName newLocLabel ]
+
+                                    else
+                                        lesion.location
+
+                                newLesion =
+                                    { lesion | location = newLocationList }
+                            in
+                            ( PSMA lesionMapUrl { form | lesions = updateLesionList newLesion form.lesions }
+                            , Cmd.none
+                            )
+
+                        ResetPsmaLesionLocation ->
+                            let
+                                newLesion =
+                                    { lesion | location = [] }
+                            in
+                            ( PSMA lesionMapUrl
+                                { form | lesions = updateLesionList newLesion form.lesions }
+                            , Cmd.none
+                            )
+
+                        SUV data ->
+                            let
+                                newLesion =
+                                    { lesion | suv = data }
+                            in
+                            ( PSMA lesionMapUrl
+                                { form | lesions = updateLesionList newLesion form.lesions }
+                            , Cmd.none
+                            )
+
+                AddPsmaLesion ->
+                    let
+                        largestId =
+                            List.maximum <| List.map .id form.lesions
+
+                        id =
+                            case largestId of
+                                Just largest ->
+                                    largest + 1
+
+                                Nothing ->
+                                    1
+                    in
+                    ( PSMA lesionMapUrl
+                        { form | lesions = form.lesions ++ [ initPsmaLesion id ] }
+                    , Cmd.none
+                    )
+
+                DeletePsmaLesion lesion ->
+                    let
+                        newLesionList =
+                            List.filter (\l -> l.id /= lesion.id) form.lesions
+                    in
+                    ( PSMA lesionMapUrl
+                        { form | lesions = newLesionList }
+                    , Cmd.none
+                    )
+
+        ( Pathology _ form, UpdatePathologyForm pathologyField ) ->
+            case pathologyField of
+                PathologyPatientId string ->
+                    ( Pathology lesionMapUrl { form | patientId = string }, Cmd.none )
+
+                ProcedureDate string ->
+                    ( Pathology lesionMapUrl { form | procedureDate = string }, Cmd.none )
+
+                PathologyComments string ->
+                    ( Pathology lesionMapUrl { form | comments = string }, Cmd.none )
+
+                SpecimenType specimenString ->
+                    let
+                        specimen =
+                            case specimenString of
+                                "Prostatectomy" ->
+                                    Prostatectomy
+
+                                _ ->
+                                    Biopsy
+                    in
+                    ( Pathology lesionMapUrl { form | specimenType = specimen, lesions = [] }, Cmd.none )
+
+                UpdatePathologyLesion lesion pathologyLesionField ->
+                    let
+                        newLesion =
+                            case pathologyLesionField of
+                                PathologyGrade data ->
+                                    { lesion | grade = data }
+
+                                PathologyLesionSize data ->
+                                    { lesion | size = data }
+
+                                PositiveCore data ->
+                                    { lesion | positiveCore = data }
+
+                                TotalCore data ->
+                                    { lesion | totalCore = data }
+
+                                GreatestPercentage data ->
+                                    { lesion | greatestPercentage = data }
+
+                                PathologySide data ->
+                                    { lesion | locSide = data }
+
+                                PathologyZone data ->
+                                    { lesion | locZone = data }
+                    in
+                    ( Pathology lesionMapUrl
+                        { form | lesions = updateLesionList newLesion form.lesions }
+                    , Cmd.none
+                    )
+
+                AddPathologyLesion ->
+                    let
+                        largestId =
+                            List.maximum <| List.map .id form.lesions
+
+                        id =
+                            case largestId of
+                                Just largest ->
+                                    largest + 1
+
+                                Nothing ->
+                                    1
+                    in
+                    ( Pathology lesionMapUrl
+                        { form | lesions = form.lesions ++ [ initPathologyLesion id ] }
+                    , Cmd.none
+                    )
+
+                DeletePathologyLesion lesion ->
+                    let
+                        newLesionList =
+                            List.filter (\l -> l.id /= lesion.id) form.lesions
+                    in
+                    ( Pathology lesionMapUrl
+                        { form | lesions = newLesionList }
+                    , Cmd.none
+                    )
+
         ( page, GotEntry result ) ->
             case page of
                 SelectForm _ ->
@@ -541,32 +757,32 @@ update msg model =
                             ( Pathology lesionUrl { pathologyForm | status = Error "Failed submission" }, Cmd.none )
 
         ( page, SubmitEntry ) ->
+            let
+                markIndexLesion form =
+                    case form.lesions of
+                        [] ->
+                            form.lesions
+
+                        first :: rest ->
+                            { first | isIndex = True } :: rest
+            in
             case page of
                 SelectForm _ ->
                     ( model, Cmd.none )
 
                 MRI lesionUrl mriForm ->
-                    let
-                        markIndexLesion =
-                            case mriForm.lesions of
-                                [] ->
-                                    mriForm.lesions
-
-                                first :: rest ->
-                                    { first | isIndex = True } :: rest
-                    in
                     ( MRI lesionUrl { mriForm | status = Sending }
-                    , postMriForm { mriForm | lesions = markIndexLesion }
+                    , postMriForm { mriForm | lesions = markIndexLesion mriForm }
                     )
 
                 PSMA lesionUrl psmaForm ->
                     ( PSMA lesionUrl { psmaForm | status = Sending }
-                    , postPsmaForm psmaForm
+                    , postPsmaForm { psmaForm | lesions = markIndexLesion psmaForm }
                     )
 
                 Pathology lesionUrl pathologyForm ->
                     ( Pathology lesionUrl { pathologyForm | status = Sending }
-                    , postPathologyForm pathologyForm
+                    , postPathologyForm { pathologyForm | lesions = markIndexLesion pathologyForm }
                     )
 
         ( page, ResetForm ) ->
@@ -583,19 +799,19 @@ update msg model =
                 Pathology lesionUrl _ ->
                     ( Pathology lesionUrl initPathologyForm, Cmd.none )
 
-        ( _, GotoPage page url ) ->
+        ( _, GotoPage page ) ->
             case page of
                 SelectPage ->
-                    ( SelectForm url, Cmd.none )
+                    ( SelectForm lesionMapUrl, Cmd.none )
 
                 MriPage ->
-                    ( MRI url initMriForm, Cmd.none )
+                    ( MRI lesionMapUrl initMriForm, Cmd.none )
 
                 PsmaPage ->
-                    ( PSMA url initPsmaForm, Cmd.none )
+                    ( PSMA lesionMapUrl initPsmaForm, Cmd.none )
 
                 PathologyPage ->
-                    ( Pathology url initPathologyForm, Cmd.none )
+                    ( Pathology lesionMapUrl initPathologyForm, Cmd.none )
 
         ( _, _ ) ->
             ( model, Cmd.none )
@@ -1186,14 +1402,90 @@ viewPsmaLesion lesionMapUrl lesion =
         ]
 
 
+viewPathologyLesion : PathologySpecimen -> PathologyLesion -> Html Msg
+viewPathologyLesion specimen lesion =
+    let
+        title =
+            "Lesion #" ++ String.fromInt lesion.id
+
+        biopsyFields =
+            div []
+                [ numberField "Positive core number"
+                    "positive-core-number"
+                    lesion.positiveCore
+                    (UpdatePathologyForm << UpdatePathologyLesion lesion << PositiveCore)
+                , numberField "Total core number"
+                    "total-core-number"
+                    lesion.totalCore
+                    (UpdatePathologyForm << UpdatePathologyLesion lesion << TotalCore)
+                , numberField "Greatest percentage of cancer (0-100%)"
+                    "greatest-cancer-percentage"
+                    lesion.greatestPercentage
+                    (UpdatePathologyForm << UpdatePathologyLesion lesion << GreatestPercentage)
+                ]
+
+        prostatectomyFields =
+            div []
+                [ numberField "Lesion size (mm)"
+                    "pathology-size"
+                    lesion.size
+                    (UpdatePathologyForm << UpdatePathologyLesion lesion << PathologyLesionSize)
+                ]
+
+        specimenSpecificFields =
+            case specimen of
+                Prostatectomy ->
+                    prostatectomyFields
+
+                Biopsy ->
+                    biopsyFields
+
+        deleteButton =
+            H.button
+                [ class <| "block border-red-600 p-1 mx-auto mt-6 mb-2 rounded text-sm text-white bg-red-600 shadow"
+                , A.type_ "button"
+                , Evt.onClick <| UpdatePathologyForm (DeletePathologyLesion lesion)
+                ]
+                [ text "Delete lesion" ]
+    in
+    H.section [ class "text-center border mt-6 pb-4 transition-all duration-200 ease-in-out hover:border-2" ]
+        [ p [ class "px-auto text-center font-bold font-serif text-2xl py-4 w-full" ] [ text title ]
+        , div [ class "px-14 text-left" ]
+            [ choiceField "Side"
+                [ ( "NA", "Not stated" ), ( "RIGHT", "Right" ), ( "LEFT", "Left" ) ]
+                (UpdatePathologyForm << UpdatePathologyLesion lesion << PathologySide)
+            , choiceField "Zone"
+                [ ( "NA", "Not stated" ), ( "BASE", "Base" ), ( "MID", "Mid" ), ( "APEX", "Apex" ) ]
+                (UpdatePathologyForm << UpdatePathologyLesion lesion << PathologyZone)
+            , choiceField "Lesion grade:"
+                [ ( "NONE", "No malignancy" )
+                , ( "ISUP 1", "ISUP 1" )
+                , ( "ISUP 2", "ISUP 2" )
+                , ( "ISUP 3", "ISUP 3" )
+                , ( "ISUP 4", "ISUP 4" )
+                , ( "ISUP 5", "ISUP 5" )
+                ]
+                (UpdatePathologyForm << UpdatePathologyLesion lesion << PathologyGrade)
+            , specimenSpecificFields
+            ]
+        , deleteButton
+        ]
+
+
 viewPsmaLesions : String -> List PsmaLesion -> Html Msg
 viewPsmaLesions url lesions =
     div [] <|
         List.map (viewPsmaLesion url) lesions
 
 
-newLesionButton : List a -> Pages -> Html Msg
-newLesionButton lesions page =
+viewPathologyLesions : PathologySpecimen -> List PathologyLesion -> Html Msg
+viewPathologyLesions specimenType lesions =
+    div [] <|
+        List.map (viewPathologyLesion specimenType) lesions
+
+
+newLesionButton : List a -> Pages -> Int -> Html Msg
+newLesionButton lesions page limit =
     let
         lesionNumber =
             List.length lesions
@@ -1202,7 +1494,7 @@ newLesionButton lesions page =
             if lesionNumber == 0 then
                 "Add index lesion"
 
-            else if lesionNumber == 1 then
+            else if lesionNumber < limit then
                 "Add an additional lesion"
 
             else
@@ -1216,32 +1508,35 @@ newLesionButton lesions page =
                 PsmaPage ->
                     Evt.onClick <| UpdatePsmaForm AddPsmaLesion
 
-                _ ->
+                PathologyPage ->
+                    Evt.onClick <| UpdatePathologyForm AddPathologyLesion
+
+                SelectPage ->
                     class ""
     in
     H.button
         [ class "block mx-auto py-1 px-2 my-8 my-1 "
         , class
-            (if lesionNumber >= 2 then
+            (if lesionNumber >= limit then
                 "text-black text-sm underline cursor-default"
 
              else
                 "bg-green-600 text-gray-200 border rounded text-lg shadow-md"
             )
         , A.type_ "button"
-        , A.disabled (lesionNumber >= 2)
+        , A.disabled (lesionNumber >= limit)
         , handler
         ]
         [ text buttonText ]
 
 
-submitButton : Status -> Html Msg
-submitButton status =
+submitButton : GenericForm a -> Html Msg
+submitButton form =
     let
         baseStyle =
             class "block border rounded py-1 px-2 my-4 mx-auto my-1 text-lg shadow-md"
     in
-    case status of
+    case form.status of
         Sending ->
             H.button
                 [ baseStyle
@@ -1297,6 +1592,30 @@ resetButton =
         [ text "Reset Form" ]
 
 
+toMenuButton : Html Msg
+toMenuButton =
+    let
+        baseStyle =
+            class "block border rounded shadow py-1 px-2 my-4 mx-auto my-1 text-sm text-gray-600"
+    in
+    H.button
+        [ baseStyle
+        , class "text-black"
+        , A.type_ "button"
+        , Evt.onClick <| GotoPage SelectPage
+        ]
+        [ text "Select a different form" ]
+
+
+formFooter : GenericForm a -> Html Msg
+formFooter form =
+    div []
+        [ submitButton form
+        , resetButton
+        , toMenuButton
+        ]
+
+
 viewMriForm : LesionUrl -> MriForm -> Html Msg
 viewMriForm lesionMapUrl form =
     H.form [ class "container mx-auto max-w-lg my-10" ]
@@ -1312,7 +1631,7 @@ viewMriForm lesionMapUrl form =
         , H.p [ class "font-serif text-sm text-center pt-6" ]
             [ text "The first entry will be considered as the index lesion" ]
         , viewMriLesions lesionMapUrl form.lesions
-        , newLesionButton form.lesions MriPage
+        , newLesionButton form.lesions MriPage 2
         , choiceField "ECE: "
             [ ( "false", "No" )
             , ( "true", "Yes" )
@@ -1326,7 +1645,7 @@ viewMriForm lesionMapUrl form =
             ]
             (UpdateMriForm << SVI)
         , textAreaField "Any additional findings?" form.comments (UpdateMriForm << MriComments)
-        , div [] [ submitButton form.status, resetButton ]
+        , formFooter form
         ]
 
 
@@ -1336,40 +1655,52 @@ viewPsmaForm lesionMapUrl form =
         [ H.h1 [ class "font-serif text-3xl text-center pb-10" ] [ text "R-PEDAL PSMA Data Entry" ]
         , H.section [ class "text-center pb-4" ]
             [ div [ class "px-14" ]
-                [ inputField "Patient ID:" "patient-id" form.patientId (UpdateMriForm << MriPatientId)
-                , dateField "PSMA date:" "psma-date" form.psmaDate (UpdateMriForm << MriDate)
+                [ inputField "Patient ID:" "patient-id" form.patientId (UpdatePsmaForm << PsmaPatientId)
+                , dateField "PSMA date:" "psma-date" form.psmaDate (UpdatePsmaForm << PsmaDate)
                 ]
             ]
         , H.hr [] []
         , H.p [ class "font-serif text-sm text-center pt-6" ]
             [ text "The first entry will be considered as the index lesion" ]
         , viewPsmaLesions lesionMapUrl form.lesions
-        , newLesionButton form.lesions PsmaPage
-        , choiceField "ECE: "
-            [ ( "false", "No" )
-            , ( "true", "Yes" )
+        , newLesionButton form.lesions PsmaPage 3
+        , textAreaField "Any additional findings?" form.comments (UpdatePsmaForm << PsmaComments)
+        , formFooter form
+        ]
+
+
+viewPathologyForm : PathologyForm -> Html Msg
+viewPathologyForm form =
+    H.form [ class "container mx-auto max-w-lg my-10" ]
+        [ H.h1 [ class "font-serif text-3xl text-center pb-10" ] [ text "R-PEDAL Pathology Data Entry" ]
+        , H.section [ class "text-center pb-4" ]
+            [ div [ class "px-14" ]
+                [ inputField "Patient ID:" "patient-id" form.patientId (UpdatePathologyForm << PathologyPatientId)
+                , dateField "Procedure date:" "procedure-date" form.procedureDate (UpdatePathologyForm << ProcedureDate)
+                , choiceField "Specimen type:"
+                    [ ( "Biopsy", "Biopsy" )
+                    , ( "Prostatectomy", "Prostatectomy" )
+                    ]
+                    (UpdatePathologyForm << SpecimenType)
+                ]
             ]
-            (UpdateMriForm << ECE)
-        , choiceField "SVI: "
-            [ ( "NO", "No" )
-            , ( "LEFT", "Yes - left" )
-            , ( "RIGHT", "Yes - right" )
-            , ( "BILATERAL", "Yes - bilateral" )
-            ]
-            (UpdateMriForm << SVI)
-        , textAreaField "Any additional findings?" form.comments (UpdateMriForm << MriComments)
-        , div [] [ submitButton form.status, resetButton ]
+        , H.p [ class "font-serif text-sm text-center pt-6" ]
+            [ text "The first entry will be considered as the index lesion" ]
+        , viewPathologyLesions form.specimenType form.lesions
+        , newLesionButton form.lesions PathologyPage 3
+        , textAreaField "Any additional findings?" form.comments (UpdatePathologyForm << PathologyComments)
+        , formFooter form
         ]
 
 
 view : Model -> Html Msg
 view model =
     case model of
-        SelectForm lesionUrl ->
-            H.ul []
-                [ H.li [ Evt.onClick (GotoPage MriPage lesionUrl) ] [ text "MRI Form" ]
-                , H.li [ Evt.onClick (GotoPage PsmaPage lesionUrl) ] [ text "PSMA Form" ]
-                , H.li [ Evt.onClick (GotoPage PathologyPage lesionUrl) ] [ text "Pathology Form" ]
+        SelectForm _ ->
+            H.div [ class "flex justify-around w-full my-20" ]
+                [ H.div [ class "border-4 border-solid rounded text-2xl p-8 cursor-pointer", Evt.onClick (GotoPage MriPage) ] [ text "MRI Form" ]
+                , H.div [ class "border-4 border-solid rounded text-2xl p-8 cursor-pointer", Evt.onClick (GotoPage PsmaPage) ] [ text "PSMA Form" ]
+                , H.div [ class "border-4 border-solid rounded text-2xl p-8 cursor-pointer", Evt.onClick (GotoPage PathologyPage) ] [ text "Pathology Form" ]
                 ]
 
         MRI lesionUrl mriForm ->
@@ -1378,8 +1709,8 @@ view model =
         PSMA lesionUrl psmaForm ->
             viewPsmaForm lesionUrl psmaForm
 
-        Pathology lesionUrl pathologyForm ->
-            text ""
+        Pathology _ pathologyForm ->
+            viewPathologyForm pathologyForm
 
 
 
