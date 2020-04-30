@@ -274,7 +274,7 @@ pathologyLesionEncoder : PathologyLesion -> Encode.Value
 pathologyLesionEncoder lesion =
     let
         lesionSize =
-            String.toInt lesion.size
+            String.toFloat lesion.size
 
         positiveCore =
             String.toInt lesion.positiveCore
@@ -283,15 +283,15 @@ pathologyLesionEncoder lesion =
             String.toInt lesion.totalCore
 
         greatestPercentage =
-            String.toInt lesion.greatestPercentage
+            String.toFloat lesion.greatestPercentage
     in
     Encode.object
         [ ( "is_index", Encode.bool lesion.isIndex )
         , ( "grade", Encode.string lesion.grade )
-        , ( "greatest_percentage", maybe Encode.int greatestPercentage )
+        , ( "greatest_percentage", maybe Encode.float greatestPercentage )
         , ( "positive_core", maybe Encode.int positiveCore )
         , ( "total_core", maybe Encode.int totalCore )
-        , ( "lesion_size", maybe Encode.int lesionSize )
+        , ( "lesion_size", maybe Encode.float lesionSize )
         , ( "loc_side", Encode.string lesion.locSide )
         , ( "loc_zone", Encode.string lesion.locZone )
         ]
