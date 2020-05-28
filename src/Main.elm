@@ -1076,7 +1076,7 @@ viewOverlay lesionOverlay =
     , singleRegionOverlay
         lesionOverlay
         "l_base_pzpl"
-        "R base PZpl"
+        "L base PZpl"
         [ 582, 286, 616, 298, 611, 318, 590, 335, 563, 344 ]
         "poly"
     , singleRegionOverlay
