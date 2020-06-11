@@ -885,11 +885,11 @@ numberField label name value handler =
         ]
 
 
-choiceField : String -> List ( String, String ) -> (String -> Msg) -> Html Msg
-choiceField label options handler =
+choiceField : String -> List ( String, String ) -> (String -> Msg) -> String -> Html Msg
+choiceField label options handler selected =
     let
         viewOption =
-            \( val, lab ) -> H.option [ A.value val ] [ text lab ]
+            \( val, lab ) -> H.option [ A.value val, A.selected (val == selected) ] [ text lab ]
     in
     genericField label <|
         [ H.select
@@ -1350,12 +1350,14 @@ viewMriLesion lesionMapUrl lesion =
                 , ( "5", "5" )
                 ]
                 (UpdateMriForm << UpdateMriLesion lesion << Score)
+                lesion.score
             , choiceField "PIRADS 2.1 upgraded?"
                 [ ( "PZ DCE", "PZ DCE" )
                 , ( "TZ DWI", "TZ DWI" )
                 , ( "NO", "No" )
                 ]
                 (UpdateMriForm << UpdateMriLesion lesion << Upgraded)
+                lesion.upgraded
             ]
         , deleteButton
         ]
@@ -1454,9 +1456,11 @@ viewPathologyLesion specimen lesion =
             [ choiceField "Side"
                 [ ( "NA", "Not stated" ), ( "RIGHT", "Right" ), ( "LEFT", "Left" ) ]
                 (UpdatePathologyForm << UpdatePathologyLesion lesion << PathologySide)
+                lesion.locSide
             , choiceField "Zone"
                 [ ( "NA", "Not stated" ), ( "BASE", "Base" ), ( "MID", "Mid" ), ( "APEX", "Apex" ) ]
                 (UpdatePathologyForm << UpdatePathologyLesion lesion << PathologyZone)
+                lesion.locZone
             , choiceField "Lesion grade:"
                 [ ( "NONE", "No malignancy" )
                 , ( "ISUP 1", "ISUP 1" )
@@ -1466,6 +1470,7 @@ viewPathologyLesion specimen lesion =
                 , ( "ISUP 5", "ISUP 5" )
                 ]
                 (UpdatePathologyForm << UpdatePathologyLesion lesion << PathologyGrade)
+                lesion.grade
             , specimenSpecificFields
             ]
         , deleteButton
@@ -1637,6 +1642,7 @@ viewMriForm lesionMapUrl form =
             , ( "true", "Yes" )
             ]
             (UpdateMriForm << ECE)
+            form.ece
         , choiceField "SVI: "
             [ ( "NO", "No" )
             , ( "LEFT", "Yes - left" )
@@ -1644,6 +1650,7 @@ viewMriForm lesionMapUrl form =
             , ( "BILATERAL", "Yes - bilateral" )
             ]
             (UpdateMriForm << SVI)
+            form.svi
         , textAreaField "Any additional findings?" form.comments (UpdateMriForm << MriComments)
         , formFooter form
         ]
@@ -1671,6 +1678,15 @@ viewPsmaForm lesionMapUrl form =
 
 viewPathologyForm : PathologyForm -> Html Msg
 viewPathologyForm form =
+    let
+        specimenType =
+            case form.specimenType of
+                Prostatectomy ->
+                    "Prostatectomy"
+
+                Biopsy ->
+                    "Biopsy"
+    in
     H.form [ class "container mx-auto max-w-lg my-10" ]
         [ H.h1 [ class "font-serif text-3xl text-center pb-10" ] [ text "R-PEDAL Pathology Data Entry" ]
         , H.section [ class "text-center pb-4" ]
@@ -1682,6 +1698,7 @@ viewPathologyForm form =
                     , ( "Prostatectomy", "Prostatectomy" )
                     ]
                     (UpdatePathologyForm << SpecimenType)
+                    specimenType
                 ]
             ]
         , H.p [ class "font-serif text-sm text-center pt-6" ]
